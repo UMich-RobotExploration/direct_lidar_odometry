@@ -20,13 +20,13 @@ This work was part of NASA JPL Team CoSTAR's research and development efforts fo
 </p>
 
 ## Instructions
-DLO requires an input point cloud of type `sensor_msgs::PointCloud2` with an optional IMU input of type `sensor_msgs::Imu`. Note that although IMU data is not required, it can be used for initial gravity alignment and will help with point cloud registration.
+DLO requires an input point cloud of type `sensor_msgs::msg::PointCloud2` with an optional IMU input of type `sensor_msgs::msg::Imu`. Note that although IMU data is not required, it can be used for initial gravity alignment and will help with point cloud registration.
 
 ### Dependencies
-Our system has been tested extensively on both Ubuntu 18.04 Bionic with ROS Melodic and Ubuntu 20.04 Focal with ROS Noetic, although other versions may work. The following configuration with required dependencies has been verified to be compatible:
+Our system has been tested on Ubuntu 22.04 Jammy with ROS 2 Humble, although other versions may work. The following configuration with required dependencies has been verified to be compatible:
 
-- Ubuntu 18.04 or 20.04
-- ROS Melodic or Noetic (`roscpp`, `std_msgs`, `sensor_msgs`, `geometry_msgs`, `pcl_ros`)
+- Ubuntu 22.04
+- ROS 2 Humble (`rclcpp`, `std_msgs`, `sensor_msgs`, `geometry_msgs`, `nav_msgs`, `pcl_ros`)
 - C++ 14
 - CMake >= `3.16.3`
 - OpenMP >= `4.5`
@@ -39,25 +39,26 @@ sudo apt install libomp-dev libpcl-dev libeigen3-dev
 ```
 
 ### Compiling
-Create a catkin workspace, clone the `direct_lidar_odometry` repository into the `src` folder, and compile via the [`catkin_tools`](https://catkin-tools.readthedocs.io/en/latest/) package (or [`catkin_make`](http://wiki.ros.org/catkin/commands/catkin_make) if preferred):
+Create a colcon workspace, clone the `direct_lidar_odometry` repository into the `src` folder, and build via [`colcon`](https://colcon.readthedocs.io/en/released/):
 ```sh
-mkdir ws && cd ws && mkdir src && catkin init && cd src
+mkdir -p ws/src && cd ws/src
 git clone https://github.com/vectr-ucla/direct_lidar_odometry.git
-catkin build
+cd .. && colcon build
 ```
 
 ### Execution
-After sourcing the workspace, launch the DLO odometry and mapping ROS nodes via:
+After sourcing the workspace, launch the DLO odometry and mapping ROS 2 nodes via:
 
 ```sh
-roslaunch direct_lidar_odometry dlo.launch \
+ros2 launch direct_lidar_odometry dlo.launch.py \
+  rviz:=true \
   pointcloud_topic:=/robot/velodyne_points \
   imu_topic:=/robot/vn100/imu
 ```
 
-Make sure to edit the `pointcloud_topic` and `imu_topic` input arguments with your specific topics. If an IMU is not being used, set the `dlo/imu` ROS param to `false` in `cfg/dlo.yaml`. However, if IMU data is available, please allow DLO to calibrate and gravity align for three seconds before moving. Note that the current implementation assumes that LiDAR and IMU coordinate frames coincide, so please make sure that the sensors are physically mounted near each other.
+Make sure to edit the `pointcloud_topic` and `imu_topic` input arguments with your specific topics. If an IMU is not being used, set the `dlo/imu` param to `false` in `cfg/dlo.yaml`. However, if IMU data is available, please allow DLO to calibrate and gravity align for three seconds before moving. Note that the current implementation assumes that LiDAR and IMU coordinate frames coincide, so please make sure that the sensors are physically mounted near each other.
 
-If successful, RViz will open and you will see similar terminal outputs to the following:
+If successful, RViz (when launched with `rviz:=true`) will open and you will see similar terminal outputs to the following:
 
 <p align='center'>
     <img src="./doc/img/imu_calibration.png" alt="drawing" width="400"/>
@@ -68,25 +69,20 @@ If successful, RViz will open and you will see similar terminal outputs to the f
 To save DLO's generated map into `.pcd` format, call the following service:
 
 ```sh
-rosservice call /robot/dlo_map/save_pcd LEAF_SIZE SAVE_PATH
-```
-To save the trajectory in KITTI format, call the following service:
-
-```sh
-rosservice call /robot/dlo_odom/save_traj SAVE_PATH
+ros2 service call /dlo_map/save_pcd direct_lidar_odometry/srv/SavePCD "{leaf_size: 0.01, save_path: /path/to/output}"
 ```
 
 ### Test Data
-For your convenience, we provide example test data [here](https://ucla.box.com/shared/static/ziojd3auzp0zzcgwb1ucau9anh69xwv9.bag) (9 minutes, ~4.2GB). To run, first launch DLO (with default point cloud and IMU topics) via:
+For your convenience, we provide example test data [here](https://ucla.box.com/shared/static/ziojd3auzp0zzcgwb1ucau9anh69xwv9.bag) (9 minutes, ~4.2GB). The bag is in ROS 1 format, so convert it with [`rosbags-convert`](https://gitlab.com/ternaris/rosbags) (`pip install rosbags`) before playing it back in ROS 2. To run, first launch DLO (with default point cloud and IMU topics) via:
 
 ```sh
-roslaunch direct_lidar_odometry dlo.launch
+ros2 launch direct_lidar_odometry dlo.launch.py rviz:=true
 ```
 
-In a separate terminal session, play back the downloaded bag:
+In a separate terminal session, play back the converted bag:
 
 ```sh
-rosbag play dlo_test.bag
+ros2 bag play dlo_test
 ```
 
 <p align='center'>
